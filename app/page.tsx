@@ -5,14 +5,28 @@ import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import type { PieceDropHandlerArgs } from "react-chessboard";
 import { createGame, sendMove, getAiMove } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const [game, setGame] = useState(new Chess());
   const [gameId, setGameId] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("active");
   const [thinking, setThinking] = useState(false);
+  const [user, setUser] = useState<{ id: number; email: string } | null>(null);
 
   useEffect(() => {
+    // verificar si hay token
+    const token = localStorage.getItem("chess-token");
+    const savedUser = localStorage.getItem("chess-user");
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    if (savedUser) setUser(JSON.parse(savedUser));
+
     async function initGame() {
       const savedId = localStorage.getItem("chess-game-id");
       if (savedId) {
@@ -22,9 +36,14 @@ export default function Home() {
         return;
       }
       const data = await createGame();
+      if (data.error) {
+        router.push("/login");
+        return;
+      }
       setGameId(data.id);
       localStorage.setItem("chess-game-id", String(data.id));
     }
+
     initGame();
   }, []);
 
@@ -69,6 +88,11 @@ export default function Home() {
     });
   }
 
+  function logout() {
+    localStorage.clear();
+    router.push("/login");
+  }
+
   function getStatusMessage() {
     if (thinking) return "♟ IA pensando...";
     if (status === "checkmate") return "👑 Jaque mate";
@@ -93,6 +117,36 @@ export default function Home() {
       justifyContent: "center",
       padding: "20px",
     }}>
+      {/* header */}
+      <div style={{
+        position: "absolute",
+        top: "16px",
+        right: "16px",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+      }}>
+        {user && (
+          <span style={{ color: "#b58863", fontSize: "13px" }}>
+            {user.email}
+          </span>
+        )}
+        <button
+          onClick={logout}
+          style={{
+            padding: "6px 16px",
+            background: "transparent",
+            color: "#b58863",
+            border: "1px solid #b58863",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "12px",
+          }}
+        >
+          Salir
+        </button>
+      </div>
+
       {/* titulo */}
       <div style={{ marginBottom: "24px", textAlign: "center" }}>
         <h1 style={{
@@ -103,14 +157,19 @@ export default function Home() {
           textTransform: "uppercase",
           marginBottom: "4px",
         }}>
-          ♔ 36 Chambers Chess ♚
+          ♔ 36 Chambers Chess 
         </h1>
         <p style={{ color: "#b58863", fontSize: "13px", letterSpacing: "2px" }}>
-          Powered by stockfish
+          Powered by Stockfish
         </p>
-        {/* // y mi nombre */}
-        <p style={{ color: "#b58863", fontSize: "11px", letterSpacing: "1px", marginTop: "6px" }}>
-          created by bzilla
+        {/* created */}
+        <p style={{
+          marginTop: "8px",
+          color: "rgba(240,217,181,0.4)",
+          fontSize: "11px",
+          letterSpacing: "1px",
+        }}>
+          Created by bzilla
         </p>
       </div>
 
@@ -132,14 +191,7 @@ export default function Home() {
       </div>
 
       {/* estado */}
-      <div style={{
-        marginTop: "20px",
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(240,217,181,0.2)",
-        borderRadius: "8px",
-        padding: "12px 32px",
-        backdropFilter: "blur(10px)",
-      }}>
+      <div style={{ marginTop: "20px" }}>
         <p style={{
           color: getStatusColor(),
           fontSize: "16px",
